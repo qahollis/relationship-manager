@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Relationship Manager</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f9fafb; color: #111827; min-height: 100vh; }
+
+    #loginScreen { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #f9fafb; }
+    .login-box { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 2.5rem; width: 100%; max-width: 380px; }
+    .login-box h1 { font-size: 20px; font-weight: 600; margin-bottom: 6px; }
+    .login-box p { font-size: 13px; color: #6b7280; margin-bottom: 1.5rem; }
+    .login-box input { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; margin-bottom: 12px; }
+    .login-box input:focus { outline: none; border-color: #1a3c5e; }
+    .login-btn { width: 100%; padding: 10px; background: #1a3c5e; border: none; border-radius: 8px; color: #fff; font-size: 14px; font-weight: 500; cursor: pointer; }
+    .login-btn:hover { background: #2e75b6; }
+    .login-error { font-size: 12px; color: #dc2626; margin-top: 8px; display: none; }
+
+    #appScreen { display: none; max-width: 720px; margin: 0 auto; padding: 2rem 1rem; }
+    .app-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #e5e7eb; }
+    .app-header h1 { font-size: 18px; font-weight: 600; color: #1a3c5e; }
+    .logout-btn { font-size: 12px; color: #6b7280; background: none; border: none; cursor: pointer; }
+    .logout-btn:hover { color: #111827; }
+
+    .config-bar { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
+    .config-bar summary { font-size: 13px; font-weight: 500; color: #6b7280; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 6px; }
+    .config-bar summary::before { content: "⚙"; }
+    .config-fields { margin-top: 1rem; display: flex; flex-direction: column; gap: 10px; }
+    .config-fields label { font-size: 12px; color: #6b7280; display: block; margin-bottom: 4px; font-weight: 500; }
+    .config-fields input { width: 100%; font-family: monospace; font-size: 12px; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; }
+    .btn-sm { margin-top: 4px; font-size: 13px; padding: 8px 16px; background: #fff; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; }
+    .btn-sm:hover { background: #f3f4f6; }
+
+    .status-pill { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; padding: 3px 10px; border-radius: 20px; margin-bottom: 1.25rem; }
+    .status-pill.connected { background: #dcfce7; color: #166534; }
+    .status-pill.disconnected { background: #fef9c3; color: #854d0e; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+    .tabs { display: flex; gap: 4px; border-bottom: 1px solid #e5e7eb; margin-bottom: 1.5rem; }
+    .tab { font-size: 13px; padding: 8px 16px; border: none; background: none; color: #6b7280; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+    .tab.active { color: #1a3c5e; border-bottom-color: #1a3c5e; font-weight: 500; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .field-group { margin-bottom: 1.25rem; }
+    .field-group label { font-size: 12px; color: #6b7280; display: block; margin-bottom: 5px; font-weight: 500; }
+    textarea { width: 100%; min-height: 140px; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; font-family: monospace; font-size: 12px; line-height: 1.6; resize: vertical; }
+    textarea.journal { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; min-height: 160px; }
+    textarea:focus { outline: none; border-color: #1a3c5e; }
+    input[type="text"] { width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; font-size: 14px; }
+    input[type="text"]:focus { outline: none; border-color: #1a3c5e; }
+
+    .btn-primary { width: 100%; padding: 10px; background: #1a3c5e; border: none; border-radius: 8px; color: #fff; font-size: 14px; font-weight: 500; cursor: pointer; }
+    .btn-primary:hover { background: #2e75b6; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .hint { font-size: 12px; color: #6b7280; margin-bottom: 1rem; line-height: 1.6; padding: 10px 12px; background: #f3f4f6; border-radius: 8px; }
+
+    .card-preview { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1.25rem; margin-top: 1.25rem; }
+    .card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #e5e7eb; }
+    .avatar { width: 44px; height: 44px; border-radius: 50%; background: #dbeafe; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 500; color: #1d4ed8; flex-shrink: 0; }
+    .card-name { font-size: 15px; font-weight: 500; }
+    .card-sub { font-size: 12px; color: #6b7280; margin-top: 2px; }
+    .card-fields { display: flex; flex-direction: column; }
+    .card-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 7px 0; border-bottom: 1px solid #f3f4f6; gap: 12px; }
+    .card-row:last-child { border-bottom: none; }
+    .card-key { font-size: 12px; color: #6b7280; flex-shrink: 0; width: 140px; padding-top: 1px; }
+    .card-val { font-size: 13px; color: #111827; text-align: right; flex: 1; }
+
+    .outreach-box, .notes-box { margin-top: 1rem; padding: 1rem; background: #f3f4f6; border-radius: 8px; }
+    .outreach-box { border-left: 3px solid #2e75b6; }
+    .lbl { font-size: 11px; font-weight: 500; color: #6b7280; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .outreach-box p { font-size: 13px; color: #111827; line-height: 1.6; }
+    .notes-box p { font-size: 13px; color: #6b7280; line-height: 1.6; font-style: italic; }
+
+    .action-row { display: flex; gap: 8px; margin-top: 1rem; }
+    .btn-secondary { flex: 1; padding: 9px; background: #fff; border: 1px solid #d1d5db; border-radius: 8px; color: #111827; font-size: 13px; cursor: pointer; }
+    .btn-secondary:hover { background: #f3f4f6; }
+    .btn-notion { flex: 2; padding: 9px; background: #1a3c5e; border: none; border-radius: 8px; color: #fff; font-size: 13px; font-weight: 500; cursor: pointer; }
+    .btn-notion:hover { background: #2e75b6; }
+    .btn-notion:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .error-box { margin-top: 1rem; padding: 10px 12px; background: #fef2f2; border-radius: 8px; font-size: 13px; color: #dc2626; line-height: 1.6; }
+
+    .journal-result { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1.25rem; margin-top: 1rem; }
+    .journal-result h3 { font-size: 14px; font-weight: 500; margin-bottom: 1rem; color: #1a3c5e; }
+    .journal-item { padding: 10px 0; border-bottom: 1px solid #f3f4f6; }
+    .journal-item:last-of-type { border-bottom: none; }
+    .journal-item-name { font-weight: 500; margin-bottom: 4px; font-size: 13px; }
+    .journal-item-detail { color: #6b7280; font-size: 12px; line-height: 1.5; }
+
+    .log-entry { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; }
+    .log-entry:last-child { border-bottom: none; }
+    .log-name { font-weight: 500; flex-shrink: 0; width: 130px; }
+    .log-category { color: #6b7280; font-size: 12px; flex-shrink: 0; width: 110px; }
+    .log-date { color: #6b7280; font-size: 12px; margin-left: auto; flex-shrink: 0; }
+    .empty-state { text-align: center; padding: 2rem 1rem; color: #6b7280; font-size: 13px; }
+
+    .loader { display: flex; align-items: center; gap: 10px; padding: 1rem; color: #6b7280; font-size: 13px; }
+    .spinner { width: 16px; height: 16px; border: 2px solid #e5e7eb; border-top-color: #6b7280; border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1a3c5e; border-radius: 8px; padding: 10px 20px; font-size: 13px; color: #fff; z-index: 999; opacity: 0; transition: opacity 0.2s; pointer-events: none; min-width: 200px; text-align: center; }
+    .toast.show { opacity: 1; }
+    .toast.error { background: #dc2626; }
+    .toast.success { background: #166534; }
+  </style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="login-box">
+    <h1>Relationship Manager</h1>
+    <p>Enter your password to continue</p>
+    <input type="password" id="loginPassword" placeholder="Password" onkeydown="if(event.key==='Enter') login()" />
+    <button class="login-btn" onclick="login()">Sign in</button>
+    <div class="login-error" id="loginError">Incorrect password. Try again.</div>
+  </div>
+</div>
+
+<div id="appScreen">
+  <div class="app-header">
+    <h1>Relationship Manager</h1>
+    <button class="logout-btn" onclick="logout()">Sign out</button>
+  </div>
+
+  <details class="config-bar" id="configDetails">
+    <summary>Notion API configuration</summary>
+    <div class="config-fields">
+      <div><label>Notion API key</label><input type="password" id="apiKey" placeholder="secret_xxxxxxxxxxxxxxxx" /></div>
+      <div><label>Anthropic API key</label><input type="password" id="anthropicKey" placeholder="sk-ant-api03-xxxxxxxxxxxxxxxx" /></div>
+      <div><label>Contacts database ID</label><input type="text" id="contactsDbId" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" /></div>
+      <div><label>Interactions database ID</label><input type="text" id="interactionsDbId" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" /></div>
+      <div><label>Cloudflare Worker URL</label><input type="text" id="proxyUrl" placeholder="https://crm-proxy.yourname.workers.dev" /></div>
+      <button class="btn-sm" onclick="saveConfig()">Save credentials</button>
+    </div>
+  </details>
+
+  <div id="statusPill" class="status-pill disconnected">
+    <span class="status-dot"></span>
+    <span id="statusText">Not configured — add credentials above</span>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('intake', this)">Contact intake</button>
+    <button class="tab" onclick="switchTab('journal', this)">Journal entry</button>
+    <button class="tab" onclick="switchTab('interaction', this)">Log interaction</button>
+    <button class="tab" onclick="switchTab('history', this)">Recent contacts</button>
+  </div>
+
+  <!-- CONTACT INTAKE -->
+  <div class="panel active" id="panel-intake">
+    <div class="hint">1. Describe a new contact to Claude in chat and ask for a contact card JSON.<br>2. Copy the JSON block.<br>3. Paste below, click Parse, then Save to Notion.</div>
+    <div class="field-group"><label>Paste contact card JSON from Claude</label><textarea id="jsonInput" placeholder='{ "full_name": "Ryan", "category": "New Connection", ... }'></textarea></div>
+    <button class="btn-primary" onclick="parseCard()">Parse card</button>
+    <div id="parseError" class="error-box" style="display:none;"></div>
+    <div id="cardPreview" style="display:none;">
+      <div class="card-preview">
+        <div class="card-header">
+          <div class="avatar" id="avatarInitials">?</div>
+          <div><div class="card-name" id="previewName">—</div><div class="card-sub" id="previewSub">—</div></div>
+        </div>
+        <div class="card-fields" id="cardFields"></div>
+      </div>
+      <div class="outreach-box" id="outreachBox" style="display:none;"><div class="lbl">Suggested outreach</div><p id="outreachText"></p></div>
+      <div class="notes-box" id="notesBox" style="display:none;"><div class="lbl">Relationship notes</div><p id="notesText"></p></div>
+      <div class="action-row">
+        <button class="btn-secondary" onclick="resetIntake()">Start over</button>
+        <button class="btn-notion" onclick="saveContact()" id="saveBtn">Save to Notion</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JOURNAL ENTRY -->
+  <div class="panel" id="panel-journal">
+    <div class="hint">Write a journal entry naturally. The AI will extract every relationship-relevant moment and log them to Notion automatically.</div>
+    <div class="field-group"><label>Journal entry</label><textarea class="journal" id="journalInput" placeholder="Today I ran into Marcus at the coffee shop. We caught up for about 20 minutes — he just got promoted and is thinking about starting a side business..."></textarea></div>
+    <button class="btn-primary" onclick="parseJournal()" id="journalBtn">Parse journal entry</button>
+    <div id="journalLoader" style="display:none;" class="loader"><div class="spinner"></div><span>Extracting relationship moments...</span></div>
+    <div id="journalError" class="error-box" style="display:none;"></div>
+    <div id="journalResults" style="display:none;"></div>
+  </div>
+
+  <!-- LOG INTERACTION -->
+  <div class="panel" id="panel-interaction">
+    <div class="hint">Ask Claude to generate an interaction log JSON, then paste it below.</div>
+    <div class="field-group"><label>Contact name</label><input type="text" id="interactionName" placeholder="Who is this interaction with?" /></div>
+    <div class="field-group"><label>Paste interaction JSON from Claude</label><textarea id="interactionJson" placeholder='{ "interaction_title": "...", "type": "Phone Call", ... }'></textarea></div>
+    <button class="btn-primary" onclick="parseInteraction()">Parse interaction</button>
+    <div id="interactionError" class="error-box" style="display:none;"></div>
+    <div id="interactionResult" style="display:none; margin-top:1.25rem;"></div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="panel" id="panel-history">
+    <div id="historyList"><div class="empty-state">Contacts you save will appear here</div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+const APP_PASSWORD = '96ForestHillsDrive!';
+const DEFAULT_PROXY = 'https://crm-proxy.qhollis96.workers.dev';
+
+let config = {
+  apiKey: '',
+  anthropicKey: '',
+  contactsDbId: '',
+  interactionsDbId: '',
+  proxyUrl: DEFAULT_PROXY
+};
+let parsedCard = null;
+let currentInteractionPayload = null;
+let savedContacts = [];
+
+// Init
+try {
+  if (sessionStorage.getItem('crm_auth') === 'true') showApp();
+  const s = localStorage.getItem('crm_config_v6');
+  if (s) { config = { ...config, ...JSON.parse(s) }; applyConfig(); }
+  const c = localStorage.getItem('crm_contacts');
+  if (c) { savedContacts = JSON.parse(c); renderHistory(); }
+} catch(e) {}
+
+// ── AUTH ────────────────────────────────────────────────────────────────────
+function login() {
+  const pw = document.getElementById('loginPassword').value;
+  if (pw === APP_PASSWORD) {
+    sessionStorage.setItem('crm_auth', 'true');
+    document.getElementById('loginError').style.display = 'none';
+    showApp();
+  } else {
+    document.getElementById('loginError').style.display = 'block';
+  }
+}
+
+function logout() {
+  sessionStorage.removeItem('crm_auth');
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('appScreen').style.display = 'none';
+  document.getElementById('loginPassword').value = '';
+}
+
+function showApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'block';
+}
+
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+function saveConfig() {
+  config.apiKey = document.getElementById('apiKey').value.trim();
+  config.anthropicKey = document.getElementById('anthropicKey').value.trim();
+  config.contactsDbId = document.getElementById('contactsDbId').value.trim();
+  config.interactionsDbId = document.getElementById('interactionsDbId').value.trim();
+  config.proxyUrl = document.getElementById('proxyUrl').value.trim() || DEFAULT_PROXY;
+  try { localStorage.setItem('crm_config_v6', JSON.stringify(config)); } catch(e) {}
+  applyConfig();
+  document.getElementById('configDetails').removeAttribute('open');
+  showToast('Credentials saved', 'success');
+}
+
+function applyConfig() {
+  const connected = config.apiKey && config.contactsDbId && config.proxyUrl;
+  document.getElementById('statusPill').className = 'status-pill ' + (connected ? 'connected' : 'disconnected');
+  document.getElementById('statusText').textContent = connected ? 'Notion connected via proxy' : 'Not configured — add credentials above';
+  if (config.apiKey) document.getElementById('apiKey').value = config.apiKey;
+  if (config.anthropicKey) document.getElementById('anthropicKey').value = config.anthropicKey;
+  if (config.contactsDbId) document.getElementById('contactsDbId').value = config.contactsDbId;
+  if (config.interactionsDbId) document.getElementById('interactionsDbId').value = config.interactionsDbId;
+  document.getElementById('proxyUrl').value = config.proxyUrl || DEFAULT_PROXY;
+}
+
+// ── TABS ────────────────────────────────────────────────────────────────────
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('panel-' + id).classList.add('active');
+}
+
+// ── UTILS ───────────────────────────────────────────────────────────────────
+function extractJSON(text) {
+  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fence) return fence[1].trim();
+  const start = text.indexOf('{'); const end = text.lastIndexOf('}');
+  if (start !== -1 && end !== -1) return text.slice(start, end + 1);
+  return text.trim();
+}
+
+function extractJSONArray(text) {
+  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fence) return fence[1].trim();
+  const start = text.indexOf('['); const end = text.lastIndexOf(']');
+  if (start !== -1 && end !== -1) return text.slice(start, end + 1);
+  return text.trim();
+}
+
+function getProxy() {
+  return (config.proxyUrl || DEFAULT_PROXY).replace(/\/$/, '');
+}
+
+async function notionFetch(path, method, body) {
+  const res = await fetch(getProxy() + '/notionapi' + path, {
+    method,
+    headers: {
+      'Authorization': 'Bearer ' + config.apiKey,
+      'Content-Type': 'application/json',
+      'Notion-Version': '2022-06-28'
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  return res;
+}
+
+async function claudeFetch(systemPrompt, userContent) {
+  const res = await fetch(getProxy() + '/claudeapi/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': config.anthropicKey,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userContent }]
+    })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error('API error ' + res.status + ': ' + (err.error?.message || JSON.stringify(err)));
+  }
+  const data = await res.json();
+  return data.content?.[0]?.text || '';
+}
+
+// ── CONTACT INTAKE ──────────────────────────────────────────────────────────
+function parseCard() {
+  const raw = document.getElementById('jsonInput').value.trim();
+  const errBox = document.getElementById('parseError');
+  errBox.style.display = 'none';
+  if (!raw) { showToast('Paste a JSON card first', 'error'); return; }
+  try { parsedCard = JSON.parse(extractJSON(raw)); renderCard(parsedCard); }
+  catch(e) { errBox.textContent = 'Could not parse JSON — make sure you copied the full block including the outer curly braces.'; errBox.style.display = 'block'; }
+}
+
+function renderCard(card) {
+  const name = card.full_name || 'Unknown';
+  const initials = name.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('avatarInitials').textContent = initials;
+  document.getElementById('previewName').textContent = name;
+  document.getElementById('previewSub').textContent = [card.role_title, card.company_org].filter(Boolean).join(' · ') || card.category || '—';
+  const fields = [
+    ['Category', card.category], ['Status', card.status], ['How we met', card.how_we_met],
+    ['Met on', card.met_on], ['Location', card.location_met], ['Company', card.company_org],
+    ['Role', card.role_title], ['Industry', card.industry], ['Relationship score', card.relationship_score],
+    ['Outreach cadence', card.outreach_cadence], ['Next outreach', card.next_outreach_date],
+    ['Shared interests', Array.isArray(card.shared_interests) ? card.shared_interests.join(', ') : card.shared_interests],
+    ['Tags', Array.isArray(card.tags) ? card.tags.join(', ') : card.tags],
+  ].filter(([,v]) => v && String(v).length > 0);
+  const container = document.getElementById('cardFields');
+  container.innerHTML = '';
+  fields.forEach(([k, v]) => {
+    const row = document.createElement('div'); row.className = 'card-row';
+    row.innerHTML = '<span class="card-key">' + k + '</span><span class="card-val">' + String(v) + '</span>';
+    container.appendChild(row);
+  });
+  if (card.notes) {
+    const row = document.createElement('div'); row.className = 'card-row'; row.style.cssText = 'flex-direction:column;gap:4px;';
+    row.innerHTML = '<span class="card-key">Notes</span><span class="card-val" style="text-align:left;font-size:12px;color:#6b7280;">' + card.notes + '</span>';
+    container.appendChild(row);
+  }
+  if (card.suggested_outreach) { document.getElementById('outreachText').textContent = card.suggested_outreach; document.getElementById('outreachBox').style.display = 'block'; }
+  if (card.relationship_notes) { document.getElementById('notesText').textContent = card.relationship_notes; document.getElementById('notesBox').style.display = 'block'; }
+  document.getElementById('cardPreview').style.display = 'block';
+}
+
+async function saveContact() {
+  if (!config.apiKey || !config.contactsDbId) { showToast('Add Notion credentials first', 'error'); document.getElementById('configDetails').setAttribute('open', ''); return; }
+  if (!parsedCard) return;
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    const res = await notionFetch('/v1/pages', 'POST', { parent: { database_id: config.contactsDbId }, properties: buildContactProps(parsedCard) });
+    if (res.ok) {
+      const data = await res.json();
+      // Auto-log first meeting interaction
+      if (config.interactionsDbId) {
+        const iProps = buildInteractionProps({
+          interaction_title: 'First Meeting' + (parsedCard.location_met ? ' — ' + parsedCard.location_met : ''),
+          date: parsedCard.met_on || new Date().toISOString().split('T')[0],
+          type: 'In-Person',
+          direction: 'Mutual',
+          summary: parsedCard.how_we_met || '',
+          follow_up_needed: true,
+          follow_up_action: 'Send first outreach message',
+          follow_up_by: parsedCard.next_outreach_date || '',
+          sentiment: 'Positive',
+          outreach_draft: parsedCard.suggested_outreach || ''
+        }, data.id);
+        await notionFetch('/v1/pages', 'POST', { parent: { database_id: config.interactionsDbId }, properties: iProps });
+      }
+      savedContacts.unshift({ name: parsedCard.full_name, category: parsedCard.category, date: new Date().toLocaleDateString(), notionId: data.id });
+      try { localStorage.setItem('crm_contacts', JSON.stringify(savedContacts.slice(0,50))); } catch(e) {}
+      renderHistory();
+      showToast(parsedCard.full_name + ' saved to Notion', 'success');
+      resetIntake();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      showToast('Notion error: ' + (err.message || res.status), 'error');
+    }
+  } catch(e) { showToast('Save failed: ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = 'Save to Notion'; }
+}
+
+function buildContactProps(card) {
+  const p = {}; const txt = v => [{ text: { content: String(v) } }];
+  if (card.full_name) p['Name'] = { title: txt(card.full_name) };
+  if (card.category) p['Category'] = { select: { name: card.category } };
+  if (card.status) p['Status'] = { select: { name: card.status } };
+  if (card.how_we_met) p['How We Met'] = { rich_text: txt(card.how_we_met) };
+  if (card.next_outreach_date) p['Next Outreach Date'] = { date: { start: card.next_outreach_date } };
+  if (card.outreach_cadence) p['Outreach Cadence'] = { select: { name: card.outreach_cadence } };
+  if (card.notes) p['Notes'] = { rich_text: txt(card.notes) };
+  if (card.sub_category) p['Sub-Category'] = { select: { name: card.sub_category } };
+  if (card.met_on) p['Met On'] = { date: { start: card.met_on } };
+  if (card.location_met) p['Location Met'] = { rich_text: txt(card.location_met) };
+  if (card.company_org) p['Company/Org'] = { rich_text: txt(card.company_org) };
+  if (card.role_title) p['Role/Title'] = { rich_text: txt(card.role_title) };
+  if (card.industry) p['Industry'] = { select: { name: card.industry } };
+  if (card.email) p['Email'] = { email: card.email };
+  if (card.phone) p['Phone'] = { phone_number: card.phone };
+  if (card.linkedin) p['LinkedIn'] = { url: card.linkedin };
+  if (card.relationship_score) p['Relationship Score'] = { select: { name: card.relationship_score } };
+  if (card.shared_interests?.length) p['Shared Interests'] = { multi_select: card.shared_interests.map(i => ({ name: String(i) })) };
+  if (card.tags?.length) p['Tags'] = { multi_select: card.tags.map(t => ({ name: String(t) })) };
+  return p;
+}
+
+function buildInteractionProps(i, contactPageId) {
+  const p = {}; const txt = v => [{ text: { content: String(v) } }];
+  if (i.interaction_title) p['Interaction Title'] = { title: txt(i.interaction_title) };
+  if (i.date) p['Date'] = { date: { start: i.date } };
+  if (i.type) p['Type'] = { select: { name: i.type } };
+  if (i.direction) p['Direction'] = { select: { name: i.direction } };
+  if (i.summary) p['Summary'] = { rich_text: txt(i.summary) };
+  p['Follow-Up Needed'] = { checkbox: !!i.follow_up_needed };
+  if (i.follow_up_action) p['Follow-Up Action'] = { rich_text: txt(i.follow_up_action) };
+  if (i.follow_up_by) p['Follow-Up By'] = { date: { start: i.follow_up_by } };
+  if (i.sentiment) p['Sentiment'] = { select: { name: i.sentiment } };
+  if (i.outreach_draft) p['Outreach Draft'] = { rich_text: txt(i.outreach_draft) };
+  if (contactPageId) p['Contact'] = { relation: [{ id: contactPageId }] };
+  return p;
+}
+
+function resetIntake() {
+  document.getElementById('jsonInput').value = '';
+  document.getElementById('cardPreview').style.display = 'none';
+  document.getElementById('outreachBox').style.display = 'none';
+  document.getElementById('notesBox').style.display = 'none';
+  document.getElementById('parseError').style.display = 'none';
+  parsedCard = null;
+}
+
+// ── JOURNAL ENTRY ───────────────────────────────────────────────────────────
+async function parseJournal() {
+  const entry = document.getElementById('journalInput').value.trim();
+  if (!entry) { showToast('Write a journal entry first', 'error'); return; }
+  if (!config.anthropicKey) { showToast('Add your Anthropic API key in config', 'error'); document.getElementById('configDetails').setAttribute('open', ''); return; }
+  if (!config.apiKey || !config.interactionsDbId) { showToast('Add Notion credentials first', 'error'); document.getElementById('configDetails').setAttribute('open', ''); return; }
+
+  document.getElementById('journalBtn').disabled = true;
+  document.getElementById('journalLoader').style.display = 'flex';
+  document.getElementById('journalResults').style.display = 'none';
+  document.getElementById('journalError').style.display = 'none';
+
+  const systemPrompt = `You are a personal CRM assistant. Parse journal entries and extract every relationship-relevant moment. Return ONLY a raw JSON array — no markdown, no explanation, just the array.
+
+Each element represents one person mentioned:
+[
+  {
+    "contact_name": "",
+    "interaction_title": "",
+    "date": "",
+    "type": "",
+    "direction": "",
+    "summary": "",
+    "follow_up_needed": false,
+    "follow_up_action": "",
+    "follow_up_by": "",
+    "sentiment": "",
+    "outreach_draft": ""
+  }
+]
+
+Rules:
+- type: In-Person / Phone Call / Text / Email / LinkedIn / Social Media / Video Call / Other
+- direction: I reached out / They reached out / Mutual
+- sentiment: Positive / Neutral / Needs Attention
+- date: YYYY-MM-DD (use today if not mentioned)
+- follow_up_by: YYYY-MM-DD or empty string
+- outreach_draft: suggested follow-up message if follow_up_needed is true, else empty string`;
+
+  try {
+    const raw = await claudeFetch(systemPrompt, 'Today\'s date: ' + new Date().toISOString().split('T')[0] + '\n\nJournal entry:\n' + entry);
+    const interactions = JSON.parse(extractJSONArray(raw));
+    renderJournalResults(interactions);
+  } catch(e) {
+    document.getElementById('journalError').textContent = 'Error: ' + e.message;
+    document.getElementById('journalError').style.display = 'block';
+  } finally {
+    document.getElementById('journalBtn').disabled = false;
+    document.getElementById('journalLoader').style.display = 'none';
+  }
+}
+
+function renderJournalResults(interactions) {
+  const container = document.getElementById('journalResults');
+  if (!interactions.length) { container.innerHTML = '<div class="empty-state">No relationship moments found.</div>'; container.style.display = 'block'; return; }
+
+  // Store interactions globally for save buttons to reference
+  window._journalInteractions = interactions;
+
+  let html = '<div class="journal-result"><h3>' + interactions.length + ' relationship moment' + (interactions.length > 1 ? 's' : '') + ' found</h3>';
+  interactions.forEach((item, idx) => {
+    html += '<div class="journal-item">' +
+      '<div class="journal-item-name">' + item.contact_name + '</div>' +
+      '<div class="journal-item-detail">' + item.interaction_title + ' · ' + item.type + ' · ' + item.sentiment + '</div>' +
+      (item.summary ? '<div class="journal-item-detail" style="margin-top:4px;">' + item.summary + '</div>' : '') +
+      (item.follow_up_action ? '<div class="journal-item-detail" style="margin-top:4px;color:#2e75b6;">Follow-up: ' + item.follow_up_action + '</div>' : '') +
+      '<button class="btn-notion" style="margin-top:8px;width:100%;flex:none;" onclick="saveJournalItem(' + idx + ')">Log to Notion</button>' +
+      '</div>';
+  });
+  html += '<button class="btn-primary" style="margin-top:1rem;" onclick="saveAllJournalItems()">Save all to Notion</button>';
+  html += '</div>';
+  container.innerHTML = html;
+  container.style.display = 'block';
+}
+
+async function saveJournalItem(idx) {
+  const item = window._journalInteractions[idx];
+  if (!item) return;
+  try {
+    const res = await notionFetch('/v1/pages', 'POST', { parent: { database_id: config.interactionsDbId }, properties: buildInteractionProps(item, null) });
+    if (res.ok) { showToast('Logged: ' + item.contact_name, 'success'); }
+    else { const e = await res.json().catch(()=>({})); showToast('Error: ' + (e.message || 'Failed'), 'error'); }
+  } catch(e) { showToast('Save failed: ' + e.message, 'error'); }
+}
+
+async function saveAllJournalItems() {
+  const items = window._journalInteractions || [];
+  let saved = 0;
+  for (const item of items) {
+    try {
+      const res = await notionFetch('/v1/pages', 'POST', { parent: { database_id: config.interactionsDbId }, properties: buildInteractionProps(item, null) });
+      if (res.ok) saved++;
+    } catch(e) {}
+  }
+  showToast(saved + ' of ' + items.length + ' interactions saved', 'success');
+}
+
+// ── LOG INTERACTION ─────────────────────────────────────────────────────────
+function parseInteraction() {
+  const raw = document.getElementById('interactionJson').value.trim();
+  const errBox = document.getElementById('interactionError');
+  errBox.style.display = 'none';
+  if (!raw) { showToast('Paste interaction JSON first', 'error'); return; }
+  try { currentInteractionPayload = JSON.parse(extractJSON(raw)); }
+  catch(e) { errBox.textContent = 'Could not parse JSON.'; errBox.style.display = 'block'; return; }
+
+  const name = document.getElementById('interactionName').value.trim() || 'Unknown';
+  const rows = [
+    ['Contact', name], ['Date', currentInteractionPayload.date], ['Type', currentInteractionPayload.type],
+    ['Direction', currentInteractionPayload.direction], ['Sentiment', currentInteractionPayload.sentiment],
+    ['Follow-up needed', currentInteractionPayload.follow_up_needed ? 'Yes' : 'No'],
+    currentInteractionPayload.follow_up_action ? ['Follow-up action', currentInteractionPayload.follow_up_action] : null,
+    currentInteractionPayload.follow_up_by ? ['Follow-up by', currentInteractionPayload.follow_up_by] : null,
+  ].filter(Boolean).map(([k,v]) => '<div class="card-row"><span class="card-key">' + k + '</span><span class="card-val">' + v + '</span></div>').join('');
+
+  document.getElementById('interactionResult').innerHTML =
+    '<div class="card-preview">' +
+    '<div style="font-size:14px;font-weight:500;margin-bottom:12px;">' + (currentInteractionPayload.interaction_title||'Interaction') + '</div>' +
+    '<div class="card-fields">' + rows + '</div>' +
+    (currentInteractionPayload.summary ? '<div style="margin-top:10px;padding:10px;background:#f3f4f6;border-radius:8px;font-size:13px;color:#6b7280;">' + currentInteractionPayload.summary + '</div>' : '') +
+    (currentInteractionPayload.outreach_draft ? '<div class="outreach-box" style="margin-top:10px;"><div class="lbl">Suggested follow-up</div><p>' + currentInteractionPayload.outreach_draft + '</p></div>' : '') +
+    '</div>' +
+    '<button class="btn-notion" style="margin-top:10px;width:100%;flex:none;" onclick="saveManualInteraction()">Save to Notion</button>';
+  document.getElementById('interactionResult').style.display = 'block';
+}
+
+async function saveManualInteraction() {
+  if (!config.apiKey || !config.interactionsDbId) { showToast('Add Notion credentials first', 'error'); return; }
+  if (!currentInteractionPayload) { showToast('No interaction to save', 'error'); return; }
+  try {
+    const res = await notionFetch('/v1/pages', 'POST', { parent: { database_id: config.interactionsDbId }, properties: buildInteractionProps(currentInteractionPayload, null) });
+    if (res.ok) { showToast('Interaction saved to Notion', 'success'); }
+    else { const e = await res.json().catch(()=>({})); showToast('Error: ' + (e.message || res.status), 'error'); }
+  } catch(e) { showToast('Save failed: ' + e.message, 'error'); }
+}
+
+// ── HISTORY ─────────────────────────────────────────────────────────────────
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  if (!savedContacts.length) { list.innerHTML = '<div class="empty-state">Contacts you save will appear here</div>'; return; }
+  list.innerHTML = savedContacts.slice(0,20).map(c =>
+    '<div class="log-entry"><span class="log-name">' + c.name + '</span><span class="log-category">' + (c.category||'—') + '</span><span class="log-date">' + c.date + '</span></div>'
+  ).join('');
+}
+
+// ── TOAST ────────────────────────────────────────────────────────────────────
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show ' + (type||'');
+  setTimeout(() => { t.className = 'toast'; }, 3500);
+}
+</script>
+</body>
+</html>
